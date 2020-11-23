@@ -46,6 +46,7 @@ channel.unsubscribe()
 plushie.subscribe('my-channel-name', {
   'my-event-name': data => console.info(data)
 })
+
 plushie.trigger([
   {
     channelName: 'my-channel-name',
@@ -53,7 +54,9 @@ plushie.trigger([
     data: 'Hello world'
   }
 ])
-channel.unsubscribe()
+
+plushie.unsubscribe('my-channel-name')
+// or plushie.unsubscribeAll()
 ```
 
 ### Controlling the queue
