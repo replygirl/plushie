@@ -83,6 +83,10 @@ export class PlushieEventQueue<T = Data, U = any> {
     this._trigger = triggerCallback
   }
 
+  public get isRunning(): boolean {
+    return !!this._interval
+  }
+
   public get plushie() {
     return this._plushie
   }
@@ -92,8 +96,10 @@ export class PlushieEventQueue<T = Data, U = any> {
   }
 
   public pause() {
-    window.clearInterval(this._interval)
-    delete this._interval
+    if (!!this._interval) {
+      window.clearInterval(this._interval)
+      delete this._interval
+    }
   }
 
   public play() {
@@ -158,7 +164,11 @@ export class Plushie<T = Data, U = any> {
   }
 
   public get eventQueue() {
+    const getIsRunning = () => this._eventQueue.isRunning
     return {
+      get isRunning() {
+        return getIsRunning()
+      },
       pause: () => this._eventQueue.pause(),
       play: () => this._eventQueue.play()
     }
@@ -198,12 +208,37 @@ export class Plushie<T = Data, U = any> {
   public unsubscribe({ channelName: c }: WithChannelName) {
     this._channels[c].unbind()
     this._pusher.unsubscribe(c)
+    delete this._channels[c]
+    if (!Object.keys(this._channels).length) this.eventQueue.pause()
   }
 
   public unsubscribeAll() {
     this.subscriptions.forEach(channelName =>
       this.unsubscribe({ channelName })
     )
+  }
+
+  private _bindOnSubscriptionSucceeded({
+    channelName,
+    bindings
+  }: PlushieBindEventCallbacksOptions<T, U>) {
+    const bindingsScoped = this._scopeBindings({
+      channelName,
+      bindings
+    })
+
+    if (!this._channels[channelName]?.isSubscribed)
+      this.bind([
+        {
+          channelName,
+          eventName: 'pusher:subscription_succeeded',
+          callback: () => {
+            this._channels[channelName].isSubscribed = true
+            this.bind(bindingsScoped)
+          }
+        }
+      ])
+    else this.bind(bindingsScoped)
   }
 
   private _scopeBindings({
@@ -220,27 +255,14 @@ export class Plushie<T = Data, U = any> {
     channelName,
     bindings
   }: PlushieBindEventCallbacksOptions<T, U>) {
-    const bindingsScoped = this._scopeBindings({
-      channelName,
-      bindings
-    })
+    if (!this.eventQueue.isRunning) this.eventQueue.play()
+
     if (!this._channels[channelName])
       this._channels[channelName] = this._pusher.subscribe(
         channelName
       )
 
-    if (!this._channels[channelName]?.isSubscribed)
-      this.bind([
-        {
-          channelName,
-          eventName: 'pusher:subscription_succeeded',
-          callback: () => {
-            this._channels[channelName].isSubscribed = true
-            this.bind(bindingsScoped)
-          }
-        }
-      ])
-    else this.bind(bindingsScoped)
+    this._bindOnSubscriptionSucceeded({ channelName, bindings })
   }
 }
 
