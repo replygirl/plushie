@@ -2,6 +2,8 @@
 
 pusher-js wrapper to simplify auth, subscriptions, & events
 
+![node-current (scoped)](https://img.shields.io/node/v/@replygirl/plushie) ![GitHub top language](https://img.shields.io/github/languages/top/replygirl/plushie) [![Libraries.io dependency status for latest release, scoped npm package](https://img.shields.io/librariesio/release/npm/@replygirl/plushie)](https://libraries.io/npm/@replygirl%2Fplushie) [![Maintainability](https://api.codeclimate.com/v1/badges/1a438989c970847d85fd/maintainability)](https://codeclimate.com/github/replygirl/plushie/maintainability) [![Test Coverage](https://api.codeclimate.com/v1/badges/1a438989c970847d85fd/test_coverage)](https://codeclimate.com/github/replygirl/plushie/test_coverage) [![GitHub issues](https://img.shields.io/github/issues/replygirl/plushie)](https://github.com/replygirl/plushie/issues) [![GitHub pull requests](https://img.shields.io/github/issues-pr/replygirl/plushie)](https://github.com/replygirl/plushie/pulls)
+
 `plushie` makes working with Pusher channels easy:
 
 - **Authentication:** Immediately connects to a `private-connections` channel to authenticate your session for use with `private-*` and `presence-*` channels
