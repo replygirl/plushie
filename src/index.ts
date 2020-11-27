@@ -169,6 +169,7 @@ export class Plushie<T = Data, U = any> {
       get isRunning() {
         return getIsRunning()
       },
+      add: (x: PlushieEventScoped<T>) => this._eventQueue.add(x),
       pause: () => this._eventQueue.pause(),
       play: () => this._eventQueue.play()
     }

@@ -21,19 +21,18 @@ yarn add @replygirl/plushie
 ```ts
 import Plushie from '@replygirl/plushie'
 
-// Without authentication
-const plushie = new Plushie({ key: 'myKey' })
-
-// With authentication
-const plushieWithAuth = new Plushie({
+// Create a Plushie
+const plushie = new Plushie({
+  // REQUIRED: Your app's public key
   key: 'myKey',
+
+  // OPTIONAL:
+  // - Required for private & presence channels
+  // - Required to trigger events
   authEndpoint: '/my-auth-endpoint'
 })
-```
 
-### Working with channels
-
-```js
+// Bind to events on a channel
 const channel = plushie.subscribe({
   channelName: 'my-channel-name',
   bindings: [
@@ -44,44 +43,47 @@ const channel = plushie.subscribe({
   ]
 })
 
-channel.trigger([
-  { eventName: 'my-event-name', data: 'Hello world' }
-])
-
-channel.unsubscribe()
-```
-
-### Working with the Plushie instance
-
-```js
-plushie.subscribe({ channelName: 'my-channel-name' })
-
-plushie.bind([
+// Add more event bindings later
+channel.bind([
   {
-    channelName: 'my-channel-name',
-    eventName: 'my-event-name',
+    eventName: 'my-other-event-name',
     callback: data => console.info(data)
   }
 ])
 
-plushie.trigger([
+// Trigger a client event
+channel.trigger([
   {
-    channelName: 'my-channel-name',
     eventName: 'my-event-name',
     data: 'Hello world'
   }
 ])
 
-plushie.unsubscribe('my-channel-name')
-// or plushie.unsubscribeAll()
+// Let it go
+channel.unsubscribe()
 ```
 
 ### Controlling the queue
 
+Your `Plushie`'s event queue will automatically start & stop as you subscribe & unsubscribe, but you can intervene too:
+
 ```js
-plushie.triggerQueue.pause()
-plushie.triggerQueue.play()
+// Stop triggering events
+plushie.eventQueue.pause()
+
+// Resume triggering events
+plushie.eventQueue.play()
 ```
+
+### Tearing down
+
+```js
+plushie.unsubscribeAll()
+```
+
+### Advanced features
+
+This doc keeps it simple, but a lot of Plushie's internal logic is exposed to give you more options. Explore the definition files or [source code](https://github.com/replygirl/tc/blob/main/src/index.ts) to figure out some neat tricks.
 
 ## New in v2.x
 
