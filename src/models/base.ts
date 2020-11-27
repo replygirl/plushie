@@ -5,3 +5,7 @@ export interface Data {
 export interface WithChannelName {
   channelName: string
 }
+
+export interface WithEventName {
+  eventName: string
+}

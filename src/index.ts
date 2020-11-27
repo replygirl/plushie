@@ -2,10 +2,10 @@ import Pusher from 'pusher-js'
 
 import { Data, WithChannelName } from './models/base'
 import {
-  PlushieBindEventCallbackOptions,
   PlushieBindEventCallbacksOptions,
   PlushieEvent,
-  PlushieEventCallbacks,
+  PlushieEventBinding,
+  PlushieEventBindingScoped,
   PlushieEventQueueTriggerCallback,
   PlushieEventScoped,
 } from './models/event'
@@ -35,14 +35,14 @@ export class PlushieChannel<T = Data, U = any> {
 
   constructor({
     channelName,
-    eventCallbacks,
+    bindings,
     plushie
   }: PlushieChannelOptions<T, U>) {
     this._channelName = channelName
     this._plushie = plushie
 
     if (!plushie.subscriptions.includes(channelName))
-      plushie.subscribe({ channelName, eventCallbacks })
+      plushie.subscribe({ channelName, bindings })
   }
 
   public get name() {
@@ -52,11 +52,10 @@ export class PlushieChannel<T = Data, U = any> {
     return this._plushie
   }
 
-  public bind(eventCallbacks: PlushieEventCallbacks<T, U>) {
-    this.plushie.bindEventCallbacks({
-      channelName: this.name,
-      eventCallbacks
-    })
+  public bind(bindings: PlushieEventBinding<T, U>[]) {
+    this.plushie.bind(
+      bindings.map(x => ({ ...x, channelName: this.name }))
+    )
   }
 
   public trigger(event: PlushieEvent<T>) {
@@ -169,32 +168,18 @@ export class Plushie<T = Data, U = any> {
     return Object.keys(this._channels)
   }
 
-  public bindEventCallback({
-    channelName: c,
-    eventName: e,
-    callback: cb
-  }: PlushieBindEventCallbackOptions<T, U>) {
-    this._channels[c].bind(e, cb)
-  }
-
-  public bindEventCallbacks({
-    channelName,
-    eventCallbacks: cbs = {}
-  }: PlushieBindEventCallbacksOptions<T, U>) {
-    Object.entries(cbs).forEach(([eventName, callback]) =>
-      this.bindEventCallback({
-        channelName,
-        eventName,
-        callback
-      })
+  public bind(bindings: PlushieEventBindingScoped<T, U>[]) {
+    bindings.forEach(
+      ({ callback: cb, channelName: c, eventName: e }) =>
+        this._channels[c].bind(e, cb)
     )
   }
 
   public subscribe({
     channelName,
-    eventCallbacks
+    bindings
   }: PlushieBindEventCallbacksOptions<T, U>) {
-    this._subscribe({ channelName, eventCallbacks })
+    this._subscribe({ channelName, bindings })
     return new PlushieChannel<T, U>({
       channelName,
       plushie: this
@@ -223,30 +208,27 @@ export class Plushie<T = Data, U = any> {
 
   private _subscribe({
     channelName,
-    eventCallbacks
+    bindings
   }: PlushieBindEventCallbacksOptions<T, U>) {
+    const bindingsScoped =
+      bindings?.map(x => ({ ...x, channelName })) ?? []
     if (!this._channels[channelName])
       this._channels[channelName] = this._pusher.subscribe(
         channelName
       )
 
     if (!this._channels[channelName]?.isSubscribed)
-      this.bindEventCallback({
-        channelName,
-        eventName: 'pusher:subscription_succeeded',
-        callback: () => {
-          this._channels[channelName].isSubscribed = true
-          this.bindEventCallbacks({
-            channelName,
-            eventCallbacks
-          })
+      this.bind([
+        {
+          channelName,
+          eventName: 'pusher:subscription_succeeded',
+          callback: () => {
+            this._channels[channelName].isSubscribed = true
+            this.bind(bindingsScoped)
+          }
         }
-      })
-    else
-      this.bindEventCallbacks({
-        channelName,
-        eventCallbacks
-      })
+      ])
+    else this.bind(bindingsScoped)
   }
 }
 
