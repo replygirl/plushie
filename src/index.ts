@@ -206,12 +206,24 @@ export class Plushie<T = Data, U = any> {
     )
   }
 
+  private _scopeBindings({
+    channelName,
+    bindings = []
+  }: PlushieBindEventCallbacksOptions<
+    T,
+    U
+  >): PlushieEventBindingScoped<T, U>[] {
+    return bindings.map(x => ({ channelName, ...x }))
+  }
+
   private _subscribe({
     channelName,
     bindings
   }: PlushieBindEventCallbacksOptions<T, U>) {
-    const bindingsScoped =
-      bindings?.map(x => ({ ...x, channelName })) ?? []
+    const bindingsScoped = this._scopeBindings({
+      channelName,
+      bindings
+    })
     if (!this._channels[channelName])
       this._channels[channelName] = this._pusher.subscribe(
         channelName
