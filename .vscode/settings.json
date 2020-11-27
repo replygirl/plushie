@@ -3,5 +3,6 @@
   "typescript.format.enable": false,
   "javascript.format.enable": false,
   "prettier.enable": true,
-  "god.tsconfig": "tsconfig.json"
+  "god.tsconfig": "tsconfig.json",
+  "editor.wordWrapColumn": 68
 }

@@ -1,127 +1,269 @@
 import Pusher from 'pusher-js'
 
+import { Data, WithChannelName } from './models/base'
+import {
+  PlushieBindEventCallbacksOptions,
+  PlushieEvent,
+  PlushieEventBinding,
+  PlushieEventBindingScoped,
+  PlushieEventQueueTriggerCallback,
+  PlushieEventScoped,
+} from './models/event'
+
+export * from './models/base'
+export * from './models/event'
+
+export interface PlushieChannelOptions<T = Data, U = any>
+  extends PlushieBindEventCallbacksOptions<T, U> {
+  plushie: Plushie<T, U>
+}
+
+export interface PlushieEventQueueOptions<T = Data, U = any> {
+  plushie: Plushie<T, U>
+  triggerCallback: PlushieEventQueueTriggerCallback<T>
+}
+
 export interface PlushieOptions {
   key: string
   authEndpoint?: string
   cluster?: string
 }
 
-export interface PlushieTrigger {
-  eventName: string
-  data: { [key: string]: any }
-}
+export class PlushieChannel<T = Data, U = any> {
+  private _channelName: string
+  private _plushie: Plushie<T, U>
 
-export interface PlushieTriggerScoped extends PlushieTrigger {
-  channelName: string
-}
+  constructor({
+    channelName,
+    bindings,
+    plushie
+  }: PlushieChannelOptions<T, U>) {
+    this._channelName = channelName
+    this._plushie = plushie
 
-export type PlushieEventCallback = (data?: any) => any | void
-export type PlushieEventCallbacks = {
-  [key: string]: PlushieEventCallback
-}
-
-export class Plushie {
-  private _channels: { [key: string]: any } = {}
-  private _pusher: Pusher
-  private _triggerQueue: {
-    interval?: number
-    items: PlushieTriggerScoped[]
-    play: () => void
-    pause: () => void
-    timeLastExecuted: number
-  } = {
-    items: [],
-    play: () => {
-      this._triggerQueue.interval = window.setInterval(() => {
-        const {
-          items: [x],
-          timeLastExecuted: t
-        } = this._triggerQueue
-        if (
-          !!x &&
-          this._channels[x.channelName]?.isSubscribed &&
-          Date.now().valueOf() - t > 100
-        ) {
-          const { channelName: c, eventName: e, data: d } =
-            this._triggerQueue.items.shift() ?? {}
-          if (c) this._channels[c].trigger(e, d)
-          this._triggerQueue.timeLastExecuted = Date.now().valueOf()
-        }
-      }, 150)
-    },
-    pause: () => {
-      window.clearInterval(this._triggerQueue.interval)
-      delete this._triggerQueue.interval
-    },
-    timeLastExecuted: Date.now().valueOf()
+    if (!plushie.subscriptions.includes(channelName))
+      plushie.subscribe({ channelName, bindings })
   }
 
-  constructor({ authEndpoint, cluster = 'us2', key }: PlushieOptions) {
-    this._pusher = new Pusher(key, { authEndpoint, cluster })
+  public get name() {
+    return this._channelName
+  }
+  public get plushie() {
+    return this._plushie
+  }
+
+  public bind(bindings: PlushieEventBinding<T, U>[]) {
+    this.plushie.bind(
+      bindings.map(x => ({ ...x, channelName: this.name }))
+    )
+  }
+
+  public trigger(event: PlushieEvent<T>) {
+    this.plushie.trigger([{ channelName: this.name, ...event }])
+  }
+
+  public unsubscribe() {
+    this.plushie.unsubscribe({ channelName: this.name })
+  }
+}
+
+export class PlushieEventQueue<T = Data, U = any> {
+  private _interval?: number
+  private _items: PlushieEventScoped<T>[] = []
+  private _plushie: Plushie<T, U>
+  private _timeLastExecuted: number
+  private _trigger: PlushieEventQueueTriggerCallback<T>
+
+  constructor({
+    plushie,
+    triggerCallback
+  }: PlushieEventQueueOptions<T, U>) {
+    this._plushie = plushie
+    this._timeLastExecuted = Date.now().valueOf()
+    this._trigger = triggerCallback
+  }
+
+  public get isRunning(): boolean {
+    return !!this._interval
+  }
+
+  public get plushie() {
+    return this._plushie
+  }
+
+  public add(event: PlushieEventScoped<T>) {
+    this._items.push(event)
+  }
+
+  public pause() {
+    if (!!this._interval) {
+      window.clearInterval(this._interval)
+      delete this._interval
+    }
+  }
+
+  public play() {
+    this._interval = window.setInterval(
+      () => this._triggerNext(),
+      150
+    )
+  }
+
+  private _reducer(
+    acc: PlushieEventScoped<T> | null,
+    { channelName: c }: PlushieEventScoped<T>,
+    i: number
+  ): PlushieEventScoped<T> | null {
+    return !acc && this._plushie.subscriptions.includes(c)
+      ? this._items.splice(i)[0]
+      : acc
+  }
+
+  private _triggerNext() {
+    if (Date.now().valueOf() - this._timeLastExecuted > 100) {
+      const event = this._items.reduce(this._reducer, null)
+      if (!!event) {
+        this._trigger(event)
+        this._timeLastExecuted = Date.now().valueOf()
+      }
+    }
+  }
+}
+
+export class Plushie<T = Data, U = any> {
+  private _channels: { [key: string]: any } = {}
+  private _pusher: Pusher
+  private _eventQueue: PlushieEventQueue<
+    T,
+    U
+  > = new PlushieEventQueue<T, U>({
+    plushie: this,
+    triggerCallback: ({
+      channelName: c,
+      eventName: e,
+      data: d
+    }: PlushieEventScoped<T>) => this._channels[c].bind(e, d)
+  })
+
+  constructor({
+    authEndpoint,
+    cluster = 'us2',
+    key
+  }: PlushieOptions) {
+    this._pusher = new Pusher(key, {
+      authEndpoint,
+      cluster
+    })
     if (authEndpoint)
       this._pusher
         .subscribe('private-connections')
         .bind('pusher:subscription_error', (e: unknown) => {
           throw e
         })
-    this._triggerQueue.play()
+    this._eventQueue.play()
   }
 
-  public subscribe(
-    channelName: string,
-    eventCallbacks: PlushieEventCallbacks
-  ) {
-    const bind = (eventName: string, callback: PlushieEventCallback) =>
-      this._channels[channelName].bind(eventName, callback)
-
-    if (!this._channels[channelName])
-      this._channels[channelName] = this._pusher.subscribe(channelName)
-
-    bind('pusher:subscription_succeeded', () => {
-      this._channels[channelName].isSubscribed = true
-    })
-
-    const bindEventCallbacks = (
-      eventCallbacks: PlushieEventCallbacks
-    ) =>
-      Object.entries(eventCallbacks).forEach(([e, cb]) => bind(e, cb))
-
-    if (!this._channels[channelName]?.isSubscribed)
-      bind('pusher:subscription_succeeded', () =>
-        bindEventCallbacks(eventCallbacks)
-      )
-    else bindEventCallbacks(eventCallbacks)
-
+  public get eventQueue() {
+    const getIsRunning = () => this._eventQueue.isRunning
     return {
-      bind: (eventCallbacks: PlushieEventCallbacks) =>
-        bindEventCallbacks(eventCallbacks),
-      trigger: (trigger: PlushieTrigger) =>
-        this.trigger({
-          channelName: this._channels[channelName],
-          ...trigger
-        }),
-      unsubscribe: () => this.unsubscribe(channelName)
+      get isRunning() {
+        return getIsRunning()
+      },
+      add: (x: PlushieEventScoped<T>) => this._eventQueue.add(x),
+      pause: () => this._eventQueue.pause(),
+      play: () => this._eventQueue.play()
     }
   }
 
-  public unsubscribe(channelName: string) {
-    this._channels[channelName].unbind()
-    this._pusher.unsubscribe(channelName)
+  public get subscriptions() {
+    return Object.keys(this._channels)
+  }
+
+  public bind(bindings: PlushieEventBindingScoped<T, U>[]) {
+    bindings.forEach(
+      ({ callback: cb, channelName: c, eventName: e }) =>
+        this._channels[c].bind(e, cb)
+    )
+  }
+
+  public subscribe({
+    channelName,
+    bindings
+  }: PlushieBindEventCallbacksOptions<T, U>) {
+    this._subscribe({ channelName, bindings })
+    return new PlushieChannel<T, U>({
+      channelName,
+      plushie: this
+    })
+  }
+
+  public trigger(events: PlushieEventScoped<T>[]) {
+    events
+      .filter(
+        ({ channelName: c, eventName: e, data: d }) =>
+          !!c && !!e && !!d
+      )
+      .forEach(x => this._eventQueue.add(x))
+  }
+
+  public unsubscribe({ channelName: c }: WithChannelName) {
+    this._channels[c].unbind()
+    this._pusher.unsubscribe(c)
+    delete this._channels[c]
+    if (!Object.keys(this._channels).length) this.eventQueue.pause()
   }
 
   public unsubscribeAll() {
-    Object.keys(this._channels).forEach(x => this.unsubscribe(x))
+    this.subscriptions.forEach(channelName =>
+      this.unsubscribe({ channelName })
+    )
   }
 
-  public trigger(...triggers: PlushieTriggerScoped[]) {
-    triggers.forEach(x => this._triggerQueue.items.push(x))
+  private _bindOnSubscriptionSucceeded({
+    channelName,
+    bindings
+  }: PlushieBindEventCallbacksOptions<T, U>) {
+    const bindingsScoped = this._scopeBindings({
+      channelName,
+      bindings
+    })
+
+    if (!this._channels[channelName]?.isSubscribed)
+      this.bind([
+        {
+          channelName,
+          eventName: 'pusher:subscription_succeeded',
+          callback: () => {
+            this._channels[channelName].isSubscribed = true
+            this.bind(bindingsScoped)
+          }
+        }
+      ])
+    else this.bind(bindingsScoped)
   }
 
-  public get triggerQueue() {
-    return {
-      pause: () => this._triggerQueue.pause(),
-      play: () => this._triggerQueue.play()
-    }
+  private _scopeBindings({
+    channelName,
+    bindings = []
+  }: PlushieBindEventCallbacksOptions<
+    T,
+    U
+  >): PlushieEventBindingScoped<T, U>[] {
+    return bindings.map(x => ({ channelName, ...x }))
+  }
+
+  private _subscribe({
+    channelName,
+    bindings
+  }: PlushieBindEventCallbacksOptions<T, U>) {
+    if (!this.eventQueue.isRunning) this.eventQueue.play()
+
+    if (!this._channels[channelName])
+      this._channels[channelName] = this._pusher.subscribe(
+        channelName
+      )
+
+    this._bindOnSubscriptionSucceeded({ channelName, bindings })
   }
 }
 
