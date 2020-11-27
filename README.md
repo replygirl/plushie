@@ -87,7 +87,7 @@ This doc keeps it simple, but a lot of Plushie's internal logic is exposed to gi
 
 ## New in v2.x
 
-- THe event queue will only run when you're subscribed to a channel
+- The event queue will only run when you're subscribed to a channel
 - Full typing
   - Channels are now `PlushieChannel`s
   - Event bindings are now `PlushieEventBinding`s
