@@ -83,7 +83,7 @@ plushie.unsubscribeAll()
 
 ### Advanced features
 
-This doc keeps it simple, but a lot of Plushie's internal logic is exposed to give you more options. Explore the definition files or [source code](https://github.com/replygirl/tc/blob/main/src/index.ts) to figure out some neat tricks.
+This doc keeps it simple, but a lot of Plushie's internal logic is exposed to give you more options. Explore the definition files or [source code](https://github.com/replygirl/plushie/blob/main/src/index.ts) to figure out some neat tricks.
 
 ## New in v2.x
 
@@ -123,4 +123,4 @@ plushie.subscribe({
 
 ## License
 
-[ISC (c) 2020 replygirl](https://github.com/replygirl/tc/blob/main/LICENSE.md)
+[ISC (c) 2020 replygirl](https://github.com/replygirl/plushie/blob/main/LICENSE.md)
