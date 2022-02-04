@@ -515,9 +515,9 @@ picomatch@^2.0.4, picomatch@^2.2.1:
   integrity sha512-q0M/9eZHzmr0AulXyPwNfZjtwZ/RBZlbN3K3CErVrk50T2ASYI7Bye0EvekFY3IP1Nt2DHu0re+V2ZHIpMkuWg==
 
 pusher-js@^7.0.1:
-  version "7.0.1"
-  resolved "https://registry.yarnpkg.com/pusher-js/-/pusher-js-7.0.1.tgz#9fa4420f3a05546e520fdffc3d067eda2f8fd224"
-  integrity sha512-ovdHvHiOwlTxlYFsArYBBqyfgil9iYgzfosAen8p31R9OUMj+nqJ5YzOPy3iY4eUZYb6DvsvKpebg0rL5AgVAw==
+  version "7.0.6"
+  resolved "https://registry.yarnpkg.com/pusher-js/-/pusher-js-7.0.6.tgz#4ff0066eda7eb99e1ba48c3e211189e72329ce2d"
+  integrity sha512-I44FTlF2OfGNg/4xcxmFq/JqFzJswoQWtWCPq+DkCh31MFg3Qkm3bNFvTXU+c5KR19TyBZ9SYlYq2rrpJZzbIA==
   dependencies:
     tweetnacl "^1.0.3"
 
