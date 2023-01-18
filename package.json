@@ -44,6 +44,6 @@
     "dist/**/*"
   ],
   "dependencies": {
-    "pusher-js": "^7.0.1"
+    "pusher-js": "^8.0.1"
   }
 }
